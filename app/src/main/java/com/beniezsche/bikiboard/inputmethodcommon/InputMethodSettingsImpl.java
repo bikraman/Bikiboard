@@ -20,7 +20,7 @@
  * Project.
  */
 
-package com.beniezsche.keyboardexploration.inputmethodcommon;
+package com.beniezsche.bikiboard.inputmethodcommon;
 
 import android.content.Context;
 import android.content.Intent;

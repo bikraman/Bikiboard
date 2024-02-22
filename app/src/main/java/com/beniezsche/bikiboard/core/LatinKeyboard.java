@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.beniezsche.keyboardexploration.core;
+package com.beniezsche.bikiboard.core;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -24,7 +24,7 @@ import android.inputmethodservice.Keyboard;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 
-import com.beniezsche.keyboardexploration.R;
+import com.beniezsche.bikiboard.R;
 
 public class LatinKeyboard extends Keyboard {
 

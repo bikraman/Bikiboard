@@ -1,12 +1,9 @@
-package com.beniezsche.keyboardexploration.spacebarcursor
+package com.beniezsche.bikiboard.spacebarcursor
 
 import android.content.Context
 import android.graphics.Rect
-import android.os.Handler
-import android.os.Looper
 import android.view.GestureDetector
 import android.view.GestureDetector.OnGestureListener
-import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import kotlin.math.abs
 

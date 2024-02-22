@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.beniezsche.keyboardexploration.core;
+package com.beniezsche.bikiboard.core;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -39,8 +39,8 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
 
-import com.beniezsche.keyboardexploration.R;
-import com.beniezsche.keyboardexploration.spacebarcursor.SpacebarCursorController;
+import com.beniezsche.bikiboard.R;
+import com.beniezsche.bikiboard.spacebarcursor.SpacebarCursorController;
 
 import java.util.ArrayList;
 import java.util.Collections;

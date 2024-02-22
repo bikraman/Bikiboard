@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.beniezsche.keyboardexploration.activities;
+package com.beniezsche.bikiboard.activities;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -22,7 +22,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.beniezsche.keyboardexploration.R;
+import com.beniezsche.bikiboard.R;
 
 /**
  * Displays the IME preferences inside the input method setting.

@@ -1,4 +1,4 @@
-package com.beniezsche.keyboardexploration
+package com.beniezsche.bikiboard
 
 import org.junit.Test
 

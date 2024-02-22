@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.beniezsche.keyboardexploration.core;
+package com.beniezsche.bikiboard.core;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -26,7 +26,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.beniezsche.keyboardexploration.R;
+import com.beniezsche.bikiboard.R;
 
 import java.util.ArrayList;
 import java.util.List;
