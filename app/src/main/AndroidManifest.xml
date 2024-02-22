@@ -12,17 +12,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KeyboardExploration"
         tools:targetApi="31">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
         <service
-            android:name="com.example.android.softkeyboard.SoftKeyboard"
+            android:name=".core.SoftKeyboard"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:exported="true">
             <intent-filter>
@@ -34,7 +25,7 @@
         </service>
 
         <activity
-            android:name="com.example.android.softkeyboard.Home"
+            android:name=".activities.Home"
             android:label="@string/settings_name"
             android:exported="true">
             <intent-filter>

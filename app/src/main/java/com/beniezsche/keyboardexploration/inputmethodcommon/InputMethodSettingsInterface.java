@@ -20,7 +20,7 @@
  * Project.
  */
 
-package com.inputmethodcommon;
+package com.beniezsche.keyboardexploration.inputmethodcommon;
 
 import android.graphics.drawable.Drawable;
 

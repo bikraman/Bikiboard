@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.softkeyboard;
+package com.beniezsche.keyboardexploration.core;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -28,7 +28,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.text.InputType;
 import android.text.method.MetaKeyKeyListener;
-import android.util.Log;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
