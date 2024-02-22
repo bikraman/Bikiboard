@@ -40,6 +40,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.beniezsche.keyboardexploration.R;
+import com.beniezsche.keyboardexploration.spacebarcursor.SpacebarCursorController;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,11 +87,19 @@ public class SoftKeyboard extends InputMethodService
     private LatinKeyboard mQwertyKeyboard;
     
     private LatinKeyboard mCurKeyboard;
+
+    private LatinKeyboard mSpacebarCursorKeyboard;
     
     private String mWordSeparators;
 
     private boolean isBackSpacePressed = false;
     private boolean isMoving = false;
+
+    private SpacebarCursorController spacebarCursorController;
+
+
+    boolean hasCursorReachedUpperLimit = false;
+    boolean hasCursorReachedLowerLimit = false;
 
     private static final int SWIPE_NEW_WORD_SELECTION_THRESHOLD = 35;
     
@@ -120,6 +129,8 @@ public class SoftKeyboard extends InputMethodService
         mQwertyKeyboard = new LatinKeyboard(this, R.xml.qwerty);
         mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
         mSymbolsShiftedKeyboard = new LatinKeyboard(this, R.xml.symbols_shift);
+
+        mSpacebarCursorKeyboard = new LatinKeyboard(this, R.xml.spacebar_cursor);
     }
     
     /**
@@ -135,6 +146,218 @@ public class SoftKeyboard extends InputMethodService
         setLatinKeyboard(mQwertyKeyboard);
         setKeyboardTouchListener();
         return mInputView;
+    }
+
+    private Rect getSpacebarDimensions() {
+
+        Rect spacebarDimen = new Rect();
+
+        for (Keyboard.Key key : mInputView.getKeyboard().getKeys()) {
+            if (key.codes[0] == ' ')
+                spacebarDimen.set(key.x, key.y, key.x + key.width, key.y + key.height);
+        }
+
+        return spacebarDimen;
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setKeyboardTouchListener() {
+
+        if (mInputView == null)
+            return;
+
+        final Rect deleteKeyBox = new Rect();
+
+        for (Keyboard.Key key : mInputView.getKeyboard().getKeys()) {
+            if(key.codes[0] == Keyboard.KEYCODE_DELETE) {
+                deleteKeyBox.set(key.x,key.y, key.x + key.width, key.y + key.height);
+            }
+        }
+
+        spacebarCursorController = new SpacebarCursorController(this, getSpacebarDimensions(), new SpacebarCursorController.CursorMovementListener() {
+            @Override
+            public void spacebarCursorStarted() {
+                setLatinKeyboard(mSpacebarCursorKeyboard);
+            }
+
+            @Override
+            public void moveUp() {
+                if (!hasCursorReachedLowerLimit) {
+                    keyDownUp(KeyEvent.KEYCODE_DPAD_UP);
+                    hasCursorReachedUpperLimit = false;
+                }
+            }
+
+            @Override
+            public void moveDown() {
+                if (!hasCursorReachedUpperLimit) {
+                    keyDownUp(KeyEvent.KEYCODE_DPAD_DOWN);
+                    hasCursorReachedLowerLimit = false;
+                }
+            }
+
+            @Override
+            public void moveLeft() {
+                if (!hasCursorReachedLowerLimit) {
+                    keyDownUp(KeyEvent.KEYCODE_DPAD_LEFT);
+                    hasCursorReachedUpperLimit = false;
+                }
+            }
+
+            @Override
+            public void moveRight() {
+                if (!hasCursorReachedUpperLimit) {
+                    keyDownUp(KeyEvent.KEYCODE_DPAD_RIGHT);
+                    hasCursorReachedLowerLimit = false;
+                }
+            }
+
+            @Override
+            public void spacebarCursorEnded() {
+                hasCursorReachedUpperLimit = false;
+                hasCursorReachedLowerLimit = false;
+                setLatinKeyboard(mCurKeyboard);
+            }
+        });
+
+        mInputView.setOnTouchListener(new View.OnTouchListener() {
+
+            int numberOfMoves = 0;
+
+            final StringBuilder textBeforeCursor = new StringBuilder();
+            final StringBuilder inputString = new StringBuilder();
+
+            int selectionStart = 0;
+            int selectionEnd = 0;
+
+            ArrayList<Integer> whitespaceIndexes = new ArrayList<>();
+            final ArrayList<Point> movementPoints = new ArrayList<>();
+            final ArrayList<Integer> selectionPoints = new ArrayList<>();
+
+            final Runnable longPressRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    isBackSpacePressed = false;
+                }
+            };
+
+            final Handler handler = new Handler();
+
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+
+                spacebarCursorController.onTouchEvent(motionEvent);
+
+                switch (motionEvent.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        int initialX = (int) motionEvent.getX();
+                        int initialY = (int) motionEvent.getY();
+
+                        if (deleteKeyBox.contains(initialX, initialY)) {
+
+                            isBackSpacePressed = true;
+
+                            handler.postDelayed(longPressRunnable, 1000);
+
+                            textBeforeCursor.append(getCurrentInputConnection().getTextBeforeCursor(Integer.MAX_VALUE, 0).toString());
+
+                            whitespaceIndexes = getWhiteSpacePositionsTowardsLeftOfPosition(textBeforeCursor.toString(), textBeforeCursor.length() - 1);
+
+                            movementPoints.add(new Point(initialX));
+                            selectionPoints.add(initialX);
+
+                        }
+
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+
+                        if (!isBackSpacePressed)
+                            return false;
+
+                        int currentX = (int) motionEvent.getX();
+                        int currentY = (int) motionEvent.getY();
+
+                        Point previousMotionEvent = movementPoints.get(movementPoints.size() - 1);
+
+                        int previousX = previousMotionEvent.getX();
+
+                        if (currentX < previousX &&
+                                Math.abs(currentX - previousX) > SWIPE_NEW_WORD_SELECTION_THRESHOLD &&
+                                !deleteKeyBox.contains(currentX, currentY)) {
+
+                            isMoving = true;
+                            handler.removeCallbacksAndMessages(null);
+
+                            if (numberOfMoves >= whitespaceIndexes.size()) {
+                                return false;
+                            }
+
+                            selectionStart = whitespaceIndexes.get(numberOfMoves);
+                            selectionEnd = textBeforeCursor.length();
+
+                            numberOfMoves++;
+
+                            getCurrentInputConnection().setSelection(selectionStart, selectionEnd);
+
+                            movementPoints.add(new Point(currentX));
+                            selectionPoints.add(currentX);
+                        }
+
+                        if (currentX > previousX) {
+
+                            if (selectionPoints.isEmpty()) {
+                                isBackSpacePressed = false;
+                                return false;
+                            }
+
+                            isMoving = true;
+
+                            if (Math.abs(currentX - selectionPoints.get(selectionPoints.size() - 1)) > SWIPE_NEW_WORD_SELECTION_THRESHOLD && numberOfMoves > 0) {
+
+                                numberOfMoves--;
+
+                                selectionStart = whitespaceIndexes.get(numberOfMoves);
+                                selectionEnd = textBeforeCursor.length();
+
+                                getCurrentInputConnection().setSelection(selectionStart, selectionEnd);
+
+                                movementPoints.add(new Point(currentX));
+                                selectionPoints.remove(selectionPoints.size() - 1);
+                            }
+                        }
+
+                        break;
+
+                    case MotionEvent.ACTION_UP:
+
+                        numberOfMoves = 0;
+
+                        movementPoints.clear();
+                        selectionPoints.clear();
+
+                        inputString.setLength(0);
+                        textBeforeCursor.setLength(0);
+
+                        if (isBackSpacePressed && selectionStart == selectionEnd && isMoving) {
+                            isBackSpacePressed = false;
+                            isMoving = false;
+                            return false;
+                        }
+
+                        if (isBackSpacePressed) {
+                            handler.removeCallbacksAndMessages(null);
+                            deleteAction();
+                        }
+
+                        isBackSpacePressed = false;
+                        isMoving = false;
+
+                        break;
+                }
+
+                return false;
+            }
+        });
     }
 
     @TargetApi(Build.VERSION_CODES.KITKAT)
@@ -750,157 +973,6 @@ public class SoftKeyboard extends InputMethodService
 
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void setKeyboardTouchListener() {
-
-        if (mInputView == null)
-            return;
-
-        final Rect deleteKeyBox = new Rect();
-
-        for (Keyboard.Key key : mInputView.getKeyboard().getKeys()) {
-            if(key.codes[0] == Keyboard.KEYCODE_DELETE) {
-                deleteKeyBox.set(key.x,key.y, key.x + key.width, key.y + key.height);
-            }
-        }
-
-        mInputView.setOnTouchListener(new View.OnTouchListener() {
-
-            int numberOfMoves = 0;
-
-            final StringBuilder textBeforeCursor = new StringBuilder();
-            final StringBuilder inputString = new StringBuilder();
-
-            int selectionStart = 0;
-            int selectionEnd = 0;
-
-            ArrayList<Integer> whitespaceIndexes = new ArrayList<>();
-            final ArrayList<Point> movementPoints = new ArrayList<>();
-            final ArrayList<Integer> selectionPoints = new ArrayList<>();
-
-            final Runnable longPressRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    isBackSpacePressed = false;
-                }
-            };
-
-            final Handler handler = new Handler();
-
-            @Override
-            public boolean onTouch(View view, MotionEvent motionEvent) {
-
-                switch (motionEvent.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        int initialX = (int) motionEvent.getX();
-                        int initialY = (int) motionEvent.getY();
-
-                        if (deleteKeyBox.contains(initialX, initialY)) {
-
-                            isBackSpacePressed = true;
-
-                            handler.postDelayed(longPressRunnable, 1000);
-
-                            textBeforeCursor.append(getCurrentInputConnection().getTextBeforeCursor(Integer.MAX_VALUE, 0).toString());
-
-                            whitespaceIndexes = getWhiteSpacePositionsTowardsLeftOfPosition(textBeforeCursor.toString(), textBeforeCursor.length() - 1);
-
-                            movementPoints.add(new Point(initialX));
-                            selectionPoints.add(initialX);
-
-                        }
-
-                        break;
-                    case MotionEvent.ACTION_MOVE:
-
-                        if (!isBackSpacePressed)
-                            return false;
-
-                        int currentX = (int) motionEvent.getX();
-                        int currentY = (int) motionEvent.getY();
-
-                        Point previousMotionEvent = movementPoints.get(movementPoints.size() - 1);
-
-                        int previousX = previousMotionEvent.getX();
-
-                        if (currentX < previousX &&
-                                Math.abs(currentX - previousX) > SWIPE_NEW_WORD_SELECTION_THRESHOLD &&
-                                !deleteKeyBox.contains(currentX, currentY)) {
-
-                            isMoving = true;
-                            handler.removeCallbacksAndMessages(null);
-
-                            if (numberOfMoves >= whitespaceIndexes.size()) {
-                                return false;
-                            }
-
-                            selectionStart = whitespaceIndexes.get(numberOfMoves);
-                            selectionEnd = textBeforeCursor.length();
-
-                            numberOfMoves++;
-
-                            getCurrentInputConnection().setSelection(selectionStart, selectionEnd);
-
-                            movementPoints.add(new Point(currentX));
-                            selectionPoints.add(currentX);
-                        }
-
-                        if (currentX > previousX) {
-
-                            if (selectionPoints.isEmpty()) {
-                                isBackSpacePressed = false;
-                                return false;
-                            }
-
-                            isMoving = true;
-
-                            if (Math.abs(currentX - selectionPoints.get(selectionPoints.size() - 1)) > SWIPE_NEW_WORD_SELECTION_THRESHOLD && numberOfMoves > 0) {
-
-                                numberOfMoves--;
-
-                                selectionStart = whitespaceIndexes.get(numberOfMoves);
-                                selectionEnd = textBeforeCursor.length();
-
-                                getCurrentInputConnection().setSelection(selectionStart, selectionEnd);
-
-                                movementPoints.add(new Point(currentX));
-                                selectionPoints.remove(selectionPoints.size() - 1);
-                            }
-                        }
-
-                        break;
-
-                    case MotionEvent.ACTION_UP:
-
-                        numberOfMoves = 0;
-
-                        movementPoints.clear();
-                        selectionPoints.clear();
-
-                        inputString.setLength(0);
-                        textBeforeCursor.setLength(0);
-
-                        if (isBackSpacePressed && selectionStart == selectionEnd && isMoving) {
-                            isBackSpacePressed = false;
-                            isMoving = false;
-                            return false;
-                        }
-
-                        if (isBackSpacePressed) {
-                            handler.removeCallbacksAndMessages(null);
-                            deleteAction();
-                        }
-
-                        isBackSpacePressed = false;
-                        isMoving = false;
-
-                        break;
-                }
-
-                return false;
-            }
-        });
-    }
 
     private ArrayList<Integer> getWhiteSpacePositionsTowardsLeftOfPosition(String string, int position) {
 
